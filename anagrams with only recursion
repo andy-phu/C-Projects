@@ -1,0 +1,371 @@
+// Andy Phu
+// CS 2, Section #121
+// Assignment 5 Real Deal
+// Summary: Write a C++ program that searches for anagrams in a dictionary.
+// An anagram is a word obtained by scrambling the letters of some string.For example,
+// the word “tar” is an anagram of the string “art”.A sample run of the program is given
+// below.Your output does not have to be formatted exactly the same as that shown in the
+// sample, but it should be in a similar style.You can use words.txt as your dictionary
+// file and anagrams.cpp as an example of a main program
+
+//preprocessors 
+#include <iostream>
+#include <fstream>
+#include <istream>
+#include <cstring>
+#include <assert.h>
+using namespace std; 
+
+//protoypes 
+int loadWords(istream& dictfile, string dict[]);
+int dictCounter(istream& dictfile, string dict[], int log);
+void Loop(int i, int max, string a, int l, int r, const string dict, int size, string results[], int &counter);
+int recBlends(string word, const string dict[], int size, string results[]);
+void showResults(const string results[], int size);
+void permutations(string a, int l, int r, const string dict[], int size, string results[], int &counter);
+void dictSearch(string a, const string dict[], int size, string results[], int &counter);
+void matchPrinter(const string results[], int size);
+void resultsSearch(string a, string results[], int &counter);
+void resForLoop(int i, int max, string a, string results[], int& counter, bool lever);
+void swap(char& a, char& b);
+
+//constant global variables
+const int MAXRESULTS = 20;    // Max matches that can be found
+const int MAXDICTWORDS = 30000; // Max words that can be read in
+
+//main function
+int main()
+{    
+    string results[MAXRESULTS];  //creates results array 
+    string dict[MAXDICTWORDS];  //creates dictionary array
+    ifstream dictfile;         // file containing the list of words    
+    int nwords;               // number of words read from dictionary    
+    string word;             //desired base word
+    dictfile.open("c:/temp/words.txt");    
+
+    if (!dictfile) //checks to see if it is open
+    {        
+        cout << " File not found! " << endl;        
+        return (1);    
+    }    
+    else
+    {
+        cout << " File found! " << endl;
+    }
+    nwords = loadWords(dictfile, dict); //number of words in dict array
+
+    cout << " Amount of words in dictionary: " << nwords << endl; //not sure how many words there are supposed to be
+
+    cout << " Please enter a string for an anagram: ";    //user enters their base word
+    cin >> word;    
+
+    int numMatches = recBlends(word, dict, nwords, results); //displays the amount of matching words 
+
+    if (!numMatches)        
+        cout << "No matches found" << endl;    
+    else        
+        showResults(results, numMatches);
+    //------------------------------------------------------------------
+    //assert test 
+    string exampleDict[] = { "kool", "moe", "dee" };
+    int numResults = recBlends("kloo", exampleDict, 3, results);
+    assert(numResults == 1 && results[0] == "kool");
+    //-----------------------------------------------------------------
+    dictfile.close();
+    return 0;
+}
+
+
+//function definitions
+/*****************************************************************
+FUNCTION NAME: loadwords()
+
+INPUT: the dictionary file (ifstream&),
+       the string array (string)
+
+OUTPUT: returns the number of 
+        words in the dictionary (int)
+
+DESCRIPTION: Places each string in dictfileinto the array dict. 
+             Returns the number of words read into dict.                                               
+             This number should not be larger than 
+             MAXDICTWORDS since that is the size of the array. 
+*****************************************************************/
+int loadWords(istream& dictfile, string dict[]) 
+{
+    int log = 0;          //counter for the amt of items in dictionary                     
+    return dictCounter(dictfile, dict, log);
+}
+
+/*****************************************************************
+FUNCTION NAME: dictCounter()
+
+INPUT: the dictionary file (ifstream&),
+       the string array (string)
+       counter for words in dictionary (int)
+
+OUTPUT: returns the number of
+        words in the dictionary (int)
+
+DESCRIPTION: counts the number of words in the dicitonary and 
+             fills the dicitonary array with words from the file
+*****************************************************************/
+int dictCounter(istream& dictfile, string dict[], int log)
+{
+    if (!dictfile || log == MAXDICTWORDS) //makes sure the amt of words from file doesn't pass the dicitonary's array size
+    {
+        return 0;
+    }
+    else if (dictfile >> dict[0]) //puts words from file into dicitonary array
+    {
+        log++; //increments log to count the number of thing in dictionary
+        return 1 + dictCounter(dictfile, dict + 1, log); //returns the amt of words in dicitionary array
+    }
+}
+
+/*****************************************************************
+FUNCTION NAME: Loop()
+
+INPUT: initial value that starts at 0 (int),
+       size of word (int)
+       word (string)
+       another initial value (int)
+       another size of word (int) 
+       dictionary array (const string)
+       size of dicitionary array (int)
+       results array (string)
+       the counter that counts the number of items 
+       in the results array (int&)
+
+OUTPUT: doesn't output anything, but swaps the characters 
+        of the word to create anagrams 
+
+DESCRIPTION: a for loop that swaps and creates permutations
+*****************************************************************/
+void Loop(int i, int max, string a, int l, int r, const string dict[], int size, string results[], int& counter)
+{
+
+    if (i > max) //base case
+    {
+        return;
+    }
+
+    //STATEMENT
+     // Swapping done
+    swap(a[l], a[i]);
+
+    // Recursion called
+    permutations(a, l + 1, r, dict, size, results, counter);
+
+    //backtrack
+    swap(a[l], a[i]);
+
+    Loop(i + 1, max, a, l, r, dict, size, results, counter); //recursive part to make the for loop
+}
+
+/*****************************************************************
+FUNCTION NAME: recBlends()
+
+INPUT: the word (string)
+       dictionary array (const string)
+       the size of the dicitionary (int)
+       results array (string)
+
+OUTPUT: returns the amount of unique matches (int)
+
+DESCRIPTION: finds permutations, matches it wtih dictionary, 
+             and makes sure the words are not duplicate by
+             comparing the matched words with the results array 
+*****************************************************************/
+int recBlends(string word, const string dict[], int size, string results[]) //Places all the combinations of word, which are found in dict into results.  
+{          
+    int wordSize = word.size(); //size of the word (og -1) 
+    int counter = 0;
+    permutations(word, 0, wordSize, dict, size, results, counter); //helper function to call permutations 
+    return counter; //amt of matches 
+}
+
+/*****************************************************************
+FUNCTION NAME: permutations()
+
+INPUT: word (string)
+       initial value (int)
+       size of word (int)
+       dictionary array (const string)
+       size of dictionary (int)
+       results array (string)
+       counts amt of words in results array (int&) 
+
+OUTPUT: doesn't ouput anything just finds permutations and calls
+        dict search to see if it is an actual word
+
+DESCRIPTION: finds permutations and calls dict search
+*****************************************************************/
+void permutations(string a, int l, int r, const string dict[], int size, string results[], int &counter) //begins at zero so it resets to zero
+{
+    // Base case
+    if (l == r) //when it's done swapping 
+    {
+        dictSearch(a, dict, size,results, counter); //checks if it matches with dictionary if there is a permutation made
+    }
+    else
+    {
+        // Permutations made
+        Loop(l, r, a, l, r, dict, size, results, counter); //goes to do more swapping 
+    }
+}
+
+/*****************************************************************
+FUNCTION NAME: dictSearch()
+
+INPUT: word (string)
+       dictionary array (const string)
+       size of dictionary (int)
+       results array (string)
+       counts amt of words in results (int&)
+
+OUTPUT: doesn't output anything, but checks to see if the 
+        permutations are actual words
+
+DESCRIPTION: checks to see if permutations are actual words and 
+             if they are call resForLoop to check for duplicates
+*****************************************************************/
+void dictSearch(string a, const string dict[], int size, string results[], int& counter) //finds the matching words
+{
+
+    if (a.size() == dict[size - 1].size() && a == dict[size - 1]) //matches the words with the dictionary 
+    {
+        bool lever = true;
+        resForLoop(0, results[0].size(), a, results, counter, lever); //for loop to find if the matched word is unique and not a double
+    }
+    else if (size == 0) //if it goes through the whole dictionary and there are no matches then done 
+    {
+        return;
+    }
+    else
+    {
+        dictSearch(a, dict, size - 1, results, counter); //go to the next dict to find a match
+    }
+}
+
+/*****************************************************************
+FUNCTION NAME: resultsSearch()
+
+INPUT: word (string)
+       results array (string)
+       counts the number of words in results(int&)
+
+OUTPUT: doesn't output anything but fills results array
+        with unique duplicates 
+
+DESCRIPTION: fills results array and counts amount of words in
+             the way by incrementing counter, and makes sure there 
+             are not more words than the MAXRESULTS
+*****************************************************************/
+void resultsSearch(string a, string results[], int &counter) //checks to see if there is a duplicate
+{
+    if (counter == MAXRESULTS) //makes sure that it doesn't go pass MAXRESULTS
+    {
+        return;
+    }
+    results[counter] = a; //fills array with non duplicate
+    counter++; //gets true result size
+        
+}
+
+/*****************************************************************
+FUNCTION NAME: resForLoop()
+
+INPUT: initial value that starts at 0 (int),
+       size of word (int)
+       word (string)
+       results array (string)
+       counts amount of words in results (int&)
+       checks to see if there are any duplicates, if so 
+       lever will be false (bool)
+
+OUTPUT: doesn't output anything but makes sure that there are 
+        no duplicates, if there are lever is changed
+
+DESCRIPTION: a for loop that checks for duplicates and calls 
+             resultsSearch if there are not
+*****************************************************************/
+void resForLoop(int i, int max, string a, string results[], int& counter, bool lever)
+{
+    if (i > max || lever == false) //makes sure that there are no matches
+    {
+        if (lever == true) //meaning that there are no duplicates 
+        {
+            resultsSearch(a, results, counter); //calls resultSearch to fill in array
+        }
+        return;
+    }
+    else if (results[i] == a) //lever wil only be false if there is a duplicate in result
+    {
+        lever = false; 
+    }
+    
+    resForLoop(i + 1, max, a, results, counter, lever); //recursion to make for loop
+}
+
+/*****************************************************************
+FUNCTION NAME: showResults()
+
+INPUT: results array (const string)
+       size of results array (int)
+
+OUTPUT: displays the unique matches
+
+DESCRIPTION: calls matchPrinter to display the unique matches
+*****************************************************************/
+void showResults(const string results[], int size) //Displays size number of strings from results. The results can be printed in any order.
+{
+    cout << " Amount of matches: " << size << endl;
+    cout << endl << " ---------" << endl;
+    cout << "  Matches " << endl;
+    cout << " ---------" << endl;
+    matchPrinter(results, size);
+}
+
+/*****************************************************************
+FUNCTION NAME: matchPrinter()
+
+INPUT: results array (const string)
+       size of results array (int)
+
+OUTPUT: couts the matches 
+
+DESCRIPTION: a for loop that displays the unique matches
+*****************************************************************/
+void matchPrinter(const string results[], int size)
+{
+    //base case 
+    if (size == 0) //if there are no more things left in result we done
+    {
+        return;
+    }
+    //recursive case
+    else
+    {
+        cout << "  " << results[size - 1] << endl; //prints last element in results
+        matchPrinter(results, size-1); //calls match printer again to try to get to the end of results
+    }
+}
+
+/*****************************************************************
+FUNCTION NAME: swap()
+
+INPUT: a letter in word (char&a)
+       a letter in word (char&b)
+
+OUTPUT: swaps the two inputted letters
+
+DESCRIPTION: swaps letters to make permutations
+*****************************************************************/
+void swap(char& a, char& b) //simple swap
+{
+    char temp = a;
+    a = b;
+    b = temp;
+}
+

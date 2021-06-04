@@ -1,6 +1,4 @@
 // Andy Phu
-// CS 2, Section #121
-// Assignment 5 Real Deal
 // Summary: Write a C++ program that searches for anagrams in a dictionary.
 // An anagram is a word obtained by scrambling the letters of some string.For example,
 // the word “tar” is an anagram of the string “art”.A sample run of the program is given

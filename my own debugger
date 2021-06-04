@@ -1,0 +1,366 @@
+// Andy Phu
+// Summary: Basically, whenever a closing symbol (such as }) is seen, 
+// it must match the nearest opening symbol of the same type (such as {). 
+// One important point: do not write a large main file. Your mainfile 
+// should simply get a file name, call a function to print the file 
+// with line numbers, andthen call a balance-checking function.
+
+//preprocessors
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <stack>
+#include <vector>
+using namespace std;
+
+//prototypes
+void printFile(istream& dictfile);
+bool balanceFile(istream& dictfile);
+bool isNormMatching(char c, char d);
+bool isBlockMatching(char c, char d);
+bool isOpeningBrace(char c);
+bool opensBlockComment(char c, char d);
+bool detSingleQuotes(char c, string line);
+bool detDoubleQuotes(char c, string line);
+
+//main
+int main()
+{
+	string fileName;
+	vector<string> vFile;
+	stack<string> filler;
+	cout << " Please enter filename for C++ code: "; //gets the user to enter a file they want to be debugged
+	cin >> fileName;
+
+	ifstream dictfile;
+	dictfile.open(fileName); //opens file
+	if (!dictfile) //makes sure file is open correctly
+	{
+		cout << endl << " File not found! " << endl;
+	}
+	printFile(dictfile); //calls printFile and display's user's file
+
+	if (balanceFile(dictfile)) //if there are no unmatches and everyththing is matched then balance!
+	{
+		cout << " Balance is ok " << endl;
+	}
+}
+
+//-------------------------------------------------------------
+//Function Name: void printFile()
+//Input: istream& dictfile (the user's file)
+//Output: a neat display of the user's file with line numbers
+//Purpose: to display the user's file
+//-------------------------------------------------------------
+void printFile(istream& dictfile)
+{
+	int counter = 1;
+	string lines;
+	while (!dictfile.eof())
+	{
+		getline(dictfile, lines);
+		cout << " " << counter << " " << lines << endl;
+		counter++;
+	}
+	cout << " " << counter << endl;
+}
+
+//-------------------------------------------------------------
+//Function Name: bool balanceFile()
+//Input:  -istream& dictfile (the user's file)
+//Output: -a boolean value that states whether the code
+//		  is balanced or not
+//	      -displays matching symbols and non matched symbols
+//		  -the line where the unmatched symbol is displayed
+//Purpose: to check if the user's code is balanced and 
+//		   display's which symbols are matched and which are 
+//		   not
+//-------------------------------------------------------------
+bool balanceFile(istream& dictfile)
+{
+	//variables
+	int stackSize; 
+	int secStackSize;
+	bool match = false;
+	bool overall = true;
+	bool preLim = true;
+	bool blockMatch = false;
+	string lines; //the lines of the file
+	vector<string> vFile; //to hold the lines from the file
+	stack<char> secondSymbols; //a dummy stack to create a circular stck
+	stack<char> symbols; //holds symbols 
+	stack<int> numbers; //holds line numbers
+	stack<int> secondNumbers; //a dummy stack to create a circular stck
+	//resets the file to the top
+	dictfile.clear(); 
+	dictfile.seekg(0, dictfile.beg);
+	while (!dictfile.eof()) //fills vector
+	{
+		getline(dictfile, lines);
+		int i = 0;
+		vFile.push_back(lines);
+	}
+
+	for (int i = 0; i < vFile.size(); i++) //goes through the whole vector
+	{
+		for (int j = 0; j < vFile[i].size(); j++) //steps: checks if there are symbols in the line, then check for quotes, then matching symbols
+		{
+			match = false;
+			//should only run for lines that have symbols in them
+			stackSize = symbols.size();
+			for (int k = 0; k < stackSize; k++) //checks to see if the symbol's opening  is already in the stack
+			{
+				if (isNormMatching(vFile[i][j], symbols.top())) //if there is a match to the top of the stack exit out of for loop and skip the rest of the if statements underneath
+				{
+					match = true;
+					cout << " pair matching " << symbols.top() << " and " << vFile[i][j] << endl;
+					symbols.pop(); //makes sure that everything that matches goes away, so there 
+					numbers.pop();
+					break; //breaks when there is a match
+				}
+				if (isBlockMatching(vFile[i][j], symbols.top())) //displays when block comments are matched
+				{
+					match = true;
+					blockMatch = true;
+					cout << " pair matching /* and */ " << endl;
+					symbols.pop(); //gets rid of the matching pair both the slash and star too
+					numbers.pop(); //makes sure that everything that matches goes away, so there 
+					symbols.pop(); //are no repeat matches
+					numbers.pop();
+					break; //breaks when there is a match
+				}
+
+				secondSymbols.push(symbols.top()); //goes through whole stack
+				secondNumbers.push(numbers.top()); //rotates the numbers too so it follows the corresponding symbols
+
+				if (symbols.size() > 0) //makes sure there is no susbscript out of range
+				{
+					symbols.pop(); //clears main stack
+					numbers.pop();
+				}
+			}
+
+			if (match && blockMatch && secondSymbols.size() > 0) //clears second stack
+			{
+				secondSymbols.pop();
+				secondNumbers.pop();
+			}
+
+			while (!secondSymbols.empty() && !secondNumbers.empty()) //fills back main stack
+			{
+				symbols.push(secondSymbols.top());
+				numbers.push(secondNumbers.top());
+				secondSymbols.pop(); //makes sure there are no remaining symbols in second stack
+
+			}
+
+			if ((!detSingleQuotes(vFile[i][j], vFile[i]) && !detDoubleQuotes(vFile[i][j], vFile[i]))) //if there is quotes around the symbol don't push onto stack
+			{
+				if (isOpeningBrace(vFile[i][j]) && !match) //puts every symbol that there is no matching into the stack
+				{
+					symbols.push(vFile[i][j]);
+					numbers.push(i + 1);
+				}
+
+				else if (opensBlockComment(vFile[i][j], vFile[i][j + 1]) && !match) //block comments are made sure to get the slash and the star
+				{
+
+					symbols.push(vFile[i][j]);
+					symbols.push(vFile[i][j + 1]); //plus one because blocks are two characters
+					numbers.push(i);
+					numbers.push(i);
+					j++; //have to increment j to account for the secondary character
+				}
+			}
+		}
+	}
+
+
+	while (!symbols.empty()) //displays the unmatched symbols and their lines 
+	{
+		overall = false;
+		if (symbols.size() > 0)
+		{
+			cout << " unbalanced " << symbols.top() << " " << "symbol on line " << numbers.top() << endl;
+			symbols.pop();
+			numbers.pop();
+		}
+	}
+	return overall; //returns true if there are no unbalances
+}
+
+//-------------------------------------------------------------
+//Function Name: bool isNormMatching()
+//Input:  -char c (the symbol in vector)
+//		  -char d (the symbol on top of stack)
+//Output: -bool that returns whethere there is a 
+//		   match for those that are not block comments
+//Purpose: to check for matches that are not block comments 
+//-------------------------------------------------------------
+bool isNormMatching(char c, char d) //wants to check to see if there is an opening based on the normal symbol given
+{
+	if (c == ']' && d == '[')
+	{
+		return true;
+	}
+	else if (c == '}' && d == '{')
+	{
+		return true;
+	}
+	else if (c == ')' && d == '(')
+	{
+		return true;
+	}
+	else if (c == '\'' && d == '\'')
+	{
+		return true;
+	}
+	else if (c == '\"' && d == '\"')
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+
+}
+//-------------------------------------------------------------
+//Function Name: bool isBlockMatching 
+//Input:  -char c (the symbol in vector)
+//		  -char d (the symbol on top of stack)
+//Output: -bool that returns whethere there is a 
+//		   match for block comments
+//Purpose: to check for matches that are block comments 
+//-------------------------------------------------------------
+bool isBlockMatching(char c, char d) //c is the closing and d is the opening
+{
+	if (c == '*' && d == '*')
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+//-------------------------------------------------------------
+//Function Name: bool isOpeningBrace()
+//Input:  -char c (the symbol in vector)
+//Output: -bool that returns whether c is a symbol 
+//Purpose: to distinguish between symbols and non symbols
+//-------------------------------------------------------------
+bool isOpeningBrace(char c) //symbol in general
+{
+	if ((c == '\'') || (c == '\"') || c == '[' || c == ']' || c == '{' || c == '}' || c == '(' || c == ')')
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+//-------------------------------------------------------------
+//Function Name: bool isOpeningBrace()
+//Input:  -char c (the symbol in vector)
+//		  -char d (the symbol right next to c)
+//Output: -bool that returns whether c+d is a block comment
+//Purpose: to distinguish block comments from symbols and non 
+//		   symbols
+//-------------------------------------------------------------
+bool opensBlockComment(char c, char d) //block comment in general
+{
+	if (c == '/' && d == '*' || c == '*' && d == '/')
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+//-------------------------------------------------------------
+//Function Name: bool detSingleQuotes()
+//Input:  -char c (the symbol in vector)
+//        -string line (a line that c is in)
+//Output: -bool that doesn't pick up symbols inside of quotes 
+//Purpose: to prevent the debugger from getting symbols 
+//		   inside single quotes 
+//-------------------------------------------------------------
+bool detSingleQuotes(char c, string line) //should work for block comments too bc if there is a symbol inside of the quotes it shouldn't pick up either
+{
+	int firstQuote = 0, secondQuote = 0; //the quotes
+	int mark = 0; //the symbol
+	for (int i = 0; i < line.size(); i++) //goes through the whole line
+	{
+		if (firstQuote != 0 && line[i] == '\'') //makes sure that the firstQuote is filled before the second 
+		{
+			secondQuote = i;
+		}
+		else if (line[i] == '\'') //if it is a single quote mark it
+		{
+			firstQuote = i;
+		}
+		else if (firstQuote != 0 && secondQuote != 0 && mark != 0) //gets out if everything is marked
+		{
+			break;
+		}
+		else if (line[i] == c) //marks the symbol
+		{
+			mark = i;
+		}
+	}
+	if (mark > firstQuote && mark < secondQuote) //the symbol is in a quote
+	{
+		return true; //returns true if symbol is in a quote
+	}
+	else
+	{
+		return false;
+	}
+
+}
+//-------------------------------------------------------------
+//Function Name: bool detDoubleQuotes()
+//Input:  -char c (the symbol in vector)
+//        -string line (a line that c is in)
+//Output: -bool that doesn't pick up symbols inside of quotes 
+//Purpose: to prevent the debugger from getting symbols 
+//		   inside double quotes 
+//-------------------------------------------------------------
+bool detDoubleQuotes(char c, string line)
+{
+	int firstQuote = 0, secondQuote = 0; //the double quotes
+	int mark = 0; //the symbol
+	for (int i = 0; i < line.size(); i++) //goes through everything in line
+	{
+		if (firstQuote != 0 && line[i] == '\"') //makes sure that the second quote is filled second
+		{
+			secondQuote = i;
+		}
+		else if (line[i] == '\"') //finds the double quotes
+		{
+			firstQuote = i;
+		}
+		else if (firstQuote != 0 && secondQuote != 0 && mark != 0) //gets out if everything is filled
+		{
+			break;
+		}
+		else if (line[i] == c) //marks symbol
+		{
+			mark = i;
+		}
+	}
+	if (mark > firstQuote && mark < secondQuote) //the symbol is in a quote
+	{
+		return true; //return true if the symbol is in the quotes
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
